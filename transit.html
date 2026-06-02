@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>公交地铁换乘规划算法 · 一步一步看懂</title>
+  <link rel="stylesheet" href="transit.css?v=1" />
+</head>
+<body>
+  <header class="hero">
+    <h1>🚇 公交地铁换乘规划算法 · 看得见的换乘</h1>
+    <p class="subtitle">
+      高德、百度、谷歌地图里「8:00 出发，怎么换乘最早到」是怎么算出来的？<br/>
+      这里用一张小地铁网，<b>一步一步、动画式</b>地讲清楚业界最常用的四种算法。
+    </p>
+    <p class="subtitle"><a href="index.html" style="color:var(--accent)">← 换个口味：路径规划算法（BFS / Dijkstra / A* 寻路）</a></p>
+  </header>
+
+  <!-- 为什么坐车的算法跟走路 / 开车不一样 -->
+  <section class="intro">
+    <h2>先搞懂一件事：坐公交，<u>时间</u>才是主角</h2>
+    <div class="intro-grid">
+      <div class="intro-card">
+        <span class="big">⏰</span>
+        <h3>有时刻表，要「等车」</h3>
+        <p>走路、开车随时能动；坐车却要<b>等下一班</b>。同一段路，早一分钟到站可能就赶上车，晚一分钟就得再等十分钟。所以代价不是「距离」，而是<b>到达时刻</b>。</p>
+      </div>
+      <div class="intro-card">
+        <span class="big">🔁</span>
+        <h3>换乘很「贵」</h3>
+        <p>每次换乘要下车、走通道、再等车，又累又费时间。算法通常同时优化两件事：<b>几点到</b> 和 <b>换乘几次</b>——这叫多目标（帕累托）最优。</p>
+      </div>
+      <div class="intro-card">
+        <span class="big">🧮</span>
+        <h3>查询要「快」</h3>
+        <p>一座城市几千个站、几十万班次，用户一点就要出结果。于是工程上既要算得对，又要算得快——这正是 RAPTOR、CSA、Transfer&nbsp;Patterns 这些算法存在的理由。</p>
+      </div>
+    </div>
+  </section>
+
+  <main class="layout">
+    <!-- 左侧：算法选择 + 讲解 + 控制 -->
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>① 选择算法</h2>
+        <div class="algo-list" id="algoList"><!-- JS 注入 --></div>
+      </section>
+
+      <section class="panel" id="explainPanel">
+        <h2>② 它的核心思路</h2>
+        <div class="explain" id="explain"><!-- JS 注入 --></div>
+      </section>
+
+      <section class="panel">
+        <h2>③ 设定行程</h2>
+        <div class="controls">
+          <div class="ctrl-row query">
+            <label>从 <select id="srcSel"></select></label>
+            <label>到 <select id="dstSel"></select></label>
+            <label>出发 <select id="depSel"></select></label>
+          </div>
+          <div class="ctrl-row">
+            <button id="playBtn" class="btn btn-primary">▶ 自动播放</button>
+            <button id="stepBtn" class="btn">下一步 ⏭</button>
+          </div>
+          <div class="ctrl-row">
+            <button id="prevBtn" class="btn">⏮ 上一步</button>
+            <button id="resetBtn" class="btn">↺ 重来</button>
+          </div>
+          <label class="slider-label">
+            播放速度
+            <input type="range" id="speed" min="1" max="100" value="55" />
+          </label>
+          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+          <p class="hint" id="progressText">第 0 / 0 步</p>
+        </div>
+      </section>
+
+      <section class="panel legend-panel">
+        <h2>图例</h2>
+        <ul class="legend">
+          <li><span class="dot src"></span> 起点</li>
+          <li><span class="dot dst"></span> 终点</li>
+          <li><span class="dot reached"></span> 已能到达（标着最早到达时刻）</li>
+          <li><span class="dot active"></span> 当前正在处理的站</li>
+          <li><span class="line ride"></span> 坐车（地铁线路）</li>
+          <li><span class="line walk"></span> 步行换乘（站内通道）</li>
+          <li><span class="line path"></span> 最终选定的行程</li>
+        </ul>
+      </section>
+    </aside>
+
+    <!-- 右侧：地图 + 解说 -->
+    <section class="stage">
+      <div class="stage-head">
+        <div class="round-badge" id="roundBadge">准备就绪</div>
+        <div class="result-chip" id="resultChip">点「下一步」或「自动播放」开始</div>
+      </div>
+
+      <div class="map-wrap">
+        <svg id="map" viewBox="0 0 740 460" aria-label="地铁网络图"></svg>
+      </div>
+
+      <!-- CSA 专用：连接（班次区段）扫描条 -->
+      <div class="conn-strip" id="connStrip" hidden>
+        <div class="conn-strip-title">所有「区段」按<b>发车时刻</b>排好队，指针从左往右扫一遍：</div>
+        <div class="conn-track" id="connTrack"></div>
+      </div>
+
+      <div class="narration" id="narration">选好算法和行程，点下面的按钮，跟着解说一步步看。</div>
+    </section>
+  </main>
+
+  <!-- 对比总结 -->
+  <footer class="foot">
+    <h2>📚 四种算法，一句话记住区别</h2>
+    <div class="cmp">
+      <div class="cmp-card">
+        <h4>时间依赖 Dijkstra</h4>
+        <p class="tag">经典基线</p>
+        <p>把地铁网当成「带时刻表的图」，每次挑<b>当前最早能到</b>的站往外扩。最容易理解，但站多了会有点慢。</p>
+      </div>
+      <div class="cmp-card highlight">
+        <h4>RAPTOR</h4>
+        <p class="tag">业界最常用</p>
+        <p>按<b>轮次</b>算：第 1 轮 = 只坐 1 趟车能到哪，第 2 轮 = 换 1 次能到哪……不用优先队列，天生算清「换乘次数 vs 到达时间」。</p>
+      </div>
+      <div class="cmp-card">
+        <h4>CSA 连接扫描</h4>
+        <p class="tag">极简极快</p>
+        <p>把所有班次区段按发车时间排成一长队，指针<b>从头扫到尾</b>，能赶上就更新。代码超短，对缓存友好。</p>
+      </div>
+      <div class="cmp-card">
+        <h4>Transfer Patterns</h4>
+        <p class="tag">谷歌地图同款</p>
+        <p>提前把「站到站的最优换乘骨架」算好存起来；用户查询时只做<b>查表 + 填时刻</b>，毫秒级出结果。</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="transit.js?v=1"></script>
+</body>
+</html>

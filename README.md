@@ -4,6 +4,9 @@
 
 直接用浏览器打开 `index.html` 即可，无需任何构建步骤。
 
+> 🚇 另有一个 **公交地铁「换乘」规划算法** 的姊妹页：[`transit.html`](transit.html)，
+> 一步步动画讲解业界最常用的 时间依赖 Dijkstra / RAPTOR / CSA / Transfer Patterns。两页顶部可互相跳转。
+
 ## 它讲了哪些算法（由简到繁）
 
 | 算法 | 一句话理解 | 考虑代价？ | 有方向感？ | 最优？ |
