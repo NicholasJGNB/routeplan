@@ -3,102 +3,140 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>路径规划算法 · 网页互动讲解</title>
-  <link rel="stylesheet" href="style.css?v=3" />
+  <title>公交地铁换乘规划算法 · 一步一步看懂</title>
+  <link rel="stylesheet" href="style.css?v=1" />
 </head>
 <body>
   <header class="hero">
-    <h1>🧭 路径规划算法 · 看得见的搜索</h1>
+    <h1>🚇 公交地铁换乘规划算法 · 看得见的换乘</h1>
     <p class="subtitle">
-      从最简单的"水波纹"到聪明的 A*，用动画一步步看清机器人 / 导航 / 游戏里是怎么找路的。
+      高德、百度、谷歌地图里「8:00 出发，怎么换乘最早到」是怎么算出来的？<br/>
+      这里用一张小地铁网，<b>一步一步、动画式</b>地讲清楚业界最常用的四种算法。
     </p>
   </header>
 
+  <!-- 为什么坐车的算法跟走路 / 开车不一样 -->
+  <section class="intro">
+    <h2>先搞懂一件事：坐公交，<u>时间</u>才是主角</h2>
+    <div class="intro-grid">
+      <div class="intro-card">
+        <span class="big">⏰</span>
+        <h3>有时刻表，要「等车」</h3>
+        <p>走路、开车随时能动；坐车却要<b>等下一班</b>。同一段路，早一分钟到站可能就赶上车，晚一分钟就得再等十分钟。所以代价不是「距离」，而是<b>到达时刻</b>。</p>
+      </div>
+      <div class="intro-card">
+        <span class="big">🔁</span>
+        <h3>换乘很「贵」</h3>
+        <p>每次换乘要下车、走通道、再等车，又累又费时间。算法通常同时优化两件事：<b>几点到</b> 和 <b>换乘几次</b>——这叫多目标（帕累托）最优。</p>
+      </div>
+      <div class="intro-card">
+        <span class="big">🧮</span>
+        <h3>查询要「快」</h3>
+        <p>一座城市几千个站、几十万班次，用户一点就要出结果。于是工程上既要算得对，又要算得快——这正是 RAPTOR、CSA、Transfer&nbsp;Patterns 这些算法存在的理由。</p>
+      </div>
+    </div>
+  </section>
+
   <main class="layout">
-    <!-- 左侧：控制面板 + 讲解 -->
+    <!-- 左侧：算法选择 + 讲解 + 控制 -->
     <aside class="sidebar">
       <section class="panel">
         <h2>① 选择算法</h2>
-        <div class="algo-list" id="algoList">
-          <!-- 由 JS 注入 -->
-        </div>
+        <div class="algo-list" id="algoList"><!-- JS 注入 --></div>
       </section>
 
       <section class="panel" id="explainPanel">
-        <h2>② 它是怎么想的？</h2>
-        <div class="explain" id="explain">
-          <!-- 由 JS 注入 -->
-        </div>
+        <h2>② 它的核心思路</h2>
+        <div class="explain" id="explain"><!-- JS 注入 --></div>
       </section>
 
       <section class="panel">
-        <h2>③ 动手玩</h2>
+        <h2>③ 设定行程</h2>
         <div class="controls">
-          <div class="ctrl-row">
-            <button id="runBtn" class="btn btn-primary">▶ 开始搜索</button>
-            <button id="clearPathBtn" class="btn">清除路径</button>
+          <div class="ctrl-row query">
+            <label>从 <select id="srcSel"></select></label>
+            <label>到 <select id="dstSel"></select></label>
+            <label>出发 <select id="depSel"></select></label>
           </div>
           <div class="ctrl-row">
-            <button id="resetWallBtn" class="btn">清空全部</button>
-            <button id="mazeBtn" class="btn">随机迷宫</button>
+            <button id="playBtn" class="btn btn-primary">▶ 自动播放</button>
+            <button id="stepBtn" class="btn">下一步 ⏭</button>
           </div>
-
+          <div class="ctrl-row">
+            <button id="prevBtn" class="btn">⏮ 上一步</button>
+            <button id="resetBtn" class="btn">↺ 重来</button>
+          </div>
           <label class="slider-label">
-            动画速度
+            播放速度
             <input type="range" id="speed" min="1" max="100" value="55" />
           </label>
-
-          <div class="tool-picker" id="toolPicker">
-            <span class="tool-title">鼠标在网格上拖动可以画：</span>
-            <label><input type="radio" name="tool" value="wall" checked /> 🧱 墙（不能穿过）</label>
-            <label><input type="radio" name="tool" value="weight" /> 🌧️ 沼泽（走起来很慢）</label>
-            <label><input type="radio" name="tool" value="erase" /> 🧽 擦除</label>
-          </div>
-          <p class="hint">提示：拖动 <b>绿色起点</b> 或 <b>红色终点</b> 可以移动它们。</p>
+          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+          <p class="hint" id="progressText">第 0 / 0 步</p>
         </div>
       </section>
 
       <section class="panel legend-panel">
         <h2>图例</h2>
         <ul class="legend">
-          <li><span class="sw start"></span> 起点</li>
-          <li><span class="sw end"></span> 终点</li>
-          <li><span class="sw wall"></span> 墙</li>
-          <li><span class="sw weight"></span> 沼泽（代价高）</li>
-          <li><span class="sw visited"></span> 已探索过的格子</li>
-          <li><span class="sw frontier"></span> 待探索的边界</li>
-          <li><span class="sw path"></span> 找到的最终路径</li>
+          <li><span class="dot src"></span> 起点</li>
+          <li><span class="dot dst"></span> 终点</li>
+          <li><span class="dot reached"></span> 已能到达（标着最早到达时刻）</li>
+          <li><span class="dot active"></span> 当前正在处理的站</li>
+          <li><span class="line ride"></span> 坐车（地铁线路）</li>
+          <li><span class="line walk"></span> 步行换乘（站内通道）</li>
+          <li><span class="line path"></span> 最终选定的行程</li>
         </ul>
-        <div class="stats" id="stats">
-          <div><span class="num" id="statVisited">0</span><small>探索格子数</small></div>
-          <div><span class="num" id="statLength">0</span><small>路径长度</small></div>
-          <div><span class="num" id="statCost">0</span><small>路径总代价</small></div>
-        </div>
       </section>
     </aside>
 
-    <!-- 右侧：网格 -->
-    <section class="grid-area">
-      <div class="grid-wrap">
-        <div id="grid" class="grid" aria-label="寻路网格"></div>
+    <!-- 右侧：地图 + 解说 -->
+    <section class="stage">
+      <div class="stage-head">
+        <div class="round-badge" id="roundBadge">准备就绪</div>
+        <div class="result-chip" id="resultChip">点「下一步」或「自动播放」开始</div>
       </div>
-      <p class="caption" id="caption">选一个算法，点「开始搜索」看它怎么找路。</p>
+
+      <div class="map-wrap">
+        <svg id="map" viewBox="0 0 740 460" aria-label="地铁网络图"></svg>
+      </div>
+
+      <!-- CSA 专用：连接（班次区段）扫描条 -->
+      <div class="conn-strip" id="connStrip" hidden>
+        <div class="conn-strip-title">所有「区段」按<b>发车时刻</b>排好队，指针从左往右扫一遍：</div>
+        <div class="conn-track" id="connTrack"></div>
+      </div>
+
+      <div class="narration" id="narration">选好算法和行程，点下面的按钮，跟着解说一步步看。</div>
     </section>
   </main>
 
+  <!-- 对比总结 -->
   <footer class="foot">
-    <details>
-      <summary>📚 一句话总结 5 个算法的区别</summary>
-      <div class="summary-grid">
-        <div><b>BFS 广度优先</b><span>像水波一圈圈扩散，盲目但保证步数最短。</span></div>
-        <div><b>DFS 深度优先</b><span>一条路走到黑，撞墙再回头，能找到路但常常绕远。</span></div>
-        <div><b>Dijkstra</b><span>BFS 的加强版，会算"代价"，沼泽会绕开，仍是盲目扩散。</span></div>
-        <div><b>贪婪最佳优先</b><span>只盯着终点猛冲，速度快但容易被墙骗、不保证最优。</span></div>
-        <div><b>A*</b><span>既看"已走多远"又看"还差多远"，又快又能找到最优路径。</span></div>
+    <h2>📚 四种算法，一句话记住区别</h2>
+    <div class="cmp">
+      <div class="cmp-card">
+        <h4>时间依赖 Dijkstra</h4>
+        <p class="tag">经典基线</p>
+        <p>把地铁网当成「带时刻表的图」，每次挑<b>当前最早能到</b>的站往外扩。最容易理解，但站多了会有点慢。</p>
       </div>
-    </details>
+      <div class="cmp-card highlight">
+        <h4>RAPTOR</h4>
+        <p class="tag">业界最常用</p>
+        <p>按<b>轮次</b>算：第 1 轮 = 只坐 1 趟车能到哪，第 2 轮 = 换 1 次能到哪……不用优先队列，天生算清「换乘次数 vs 到达时间」。</p>
+      </div>
+      <div class="cmp-card">
+        <h4>CSA 连接扫描</h4>
+        <p class="tag">极简极快</p>
+        <p>把所有班次区段按发车时间排成一长队，指针<b>从头扫到尾</b>，能赶上就更新。代码超短，对缓存友好。</p>
+      </div>
+      <div class="cmp-card">
+        <h4>Transfer Patterns</h4>
+        <p class="tag">谷歌地图同款</p>
+        <p>提前把「站到站的最优换乘骨架」算好存起来；用户查询时只做<b>查表 + 填时刻</b>，毫秒级出结果。</p>
+      </div>
+    </div>
   </footer>
 
-  <script src="script.js?v=3"></script>
+  <script src="script.js?v=1"></script>
 </body>
 </html>
