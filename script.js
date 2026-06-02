@@ -252,22 +252,24 @@ function runAlgorithm(algo) {
   }
 
   else if (algo === "dfs") {
-    const stack = [start];
+    // 把"从哪个格子来的"和节点一起压栈，
+    // 等真正出栈、第一次访问到它时才记 parent，
+    // 这样重建出来的才是 DFS 真实走过的那条路（会很蜿蜒）。
+    const stack = [{ node: start, from: null }];
     while (stack.length) {
-      const cur = stack.pop();
+      const { node: cur, from } = stack.pop();
       const ck = key(cur.r, cur.c);
       if (visited.has(ck)) continue;
       visited.add(ck);
+      if (from) parent.set(ck, from);
       order.push(cur);
       if (isEnd(cur.r, cur.c)) { found = true; break; }
       // 逆序压栈，让探索方向更自然
       const ns = neighbors(cur.r, cur.c);
       for (let i = ns.length - 1; i >= 0; i--) {
         const n = ns[i];
-        const k = key(n.r, n.c);
-        if (!visited.has(k)) {
-          if (!parent.has(k)) parent.set(k, cur);
-          stack.push(n);
+        if (!visited.has(key(n.r, n.c))) {
+          stack.push({ node: n, from: cur });
         }
       }
     }
